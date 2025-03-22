@@ -1,228 +1,192 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'departure.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(TrainboardApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class TrainboardState extends ChangeNotifier {}
+
+class TrainboardApp extends StatelessWidget {
+  const TrainboardApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final commonTextColor = Color(0xffeeeeee);
     return ChangeNotifierProvider(
-      create: (context) => MyAppState(),
+      create: (context) => TrainboardState(),
       child: MaterialApp(
-        title: 'Namer App',
+        title: 'Trainboard',
         theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
-        ),
-        home: HomePage(),
-      ),
-    );
-  }
-}
+          scaffoldBackgroundColor: Color(0xff212121),
+          useMaterial3: false,
+          colorScheme: ColorScheme.dark(
+            // primary = normal
+            primary: Color(0xff313131),
+            onPrimary: commonTextColor,
 
-class MyAppState extends ChangeNotifier {
-  var current = 1;
+            // secondary = delayed
+            secondary: Color(0xff664f0e),
+            onSecondary: commonTextColor,
 
-  var favoriteNumbers = <int>{};
+            // tertiary = cancelled
+            tertiary: Color(0xff5a1919),
+            onTertiary: commonTextColor,
 
-  void getNext() {
-    current += 1;
-    notifyListeners();
-  }
-
-  void toggleFavorite() => toggleFavoriteOf(current);
-
-  void toggleFavoriteOf(int n) {
-    if (favoriteNumbers.contains(n)) {
-      favoriteNumbers.remove(n);
-    } else {
-      favoriteNumbers.add(n);
-    }
-    notifyListeners();
-  }
-
-  bool currentIsFavorite() => favoriteNumbers.contains(current);
-}
-
-class GeneratorPage extends StatelessWidget {
-  const GeneratorPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-    var currentNumber = appState.current;
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text("Wowzer"),
-        Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: NumberDisplayer1000(
-            currentNumber: currentNumber,
-            isPhat: true,
+            // used for lowkey icons on primary
+            onPrimaryFixed: Color(0xff5b5b5b),
+            // used for pop icons on primary
+            onPrimaryFixedVariant: Color(0xffc5b019),
+          ),
+          textTheme: TextTheme(
+            bodyMedium: GoogleFonts.robotoMono(
+              fontSize: 40,
+              fontWeight: FontWeight.normal,
+            ),
           ),
         ),
-
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 10,
-          children: [
-            FavoriteButton(number: appState.current),
-            ElevatedButton(
-              onPressed: () => appState.getNext(),
-              child: Text("next"),
-            ),
-          ],
-        ),
-      ],
+        home: MainPage(),
+      ),
     );
   }
 }
 
-class FavoriteButton extends StatelessWidget {
-  const FavoriteButton({super.key, required this.number});
-
-  final int number;
+class MainPage extends StatelessWidget {
+  const MainPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-    return ElevatedButton.icon(
-      onPressed: () => appState.toggleFavoriteOf(number),
-      icon: Icon(
-        appState.currentIsFavorite() ? Icons.favorite : Icons.favorite_outline,
-        color: Colors.redAccent,
+    return Scaffold(
+      body: Column(
+        children: [
+          DepartureWidget(
+            departure: Departure.train(
+              time: "16:05",
+              type: DepartureType.normal,
+            ),
+          ),
+          DepartureWidget(
+            departure: Departure.train(
+              time: "16:05",
+              type: DepartureType.normal,
+            ),
+          ),
+          DepartureWidget(
+            departure: Departure.bus(
+              time: "11m",
+              secondaryText: "Kingston",
+              isLive: true,
+            ),
+          ),
+          DepartureWidget(
+            departure: Departure.bus(
+              time: "31m",
+              secondaryText: "Kingston",
+              isLive: false,
+            ),
+          ),
+          DepartureWidget(
+            departure: Departure.train(
+              time: "16:34",
+              type: DepartureType.delayed,
+              secondaryText: "16:38",
+            ),
+          ),
+          DepartureWidget(
+            departure: Departure.train(
+              time: "17:04",
+              type: DepartureType.cancelled,
+              secondaryText: "Cancelled",
+            ),
+          ),
+        ],
       ),
-      label: Text("Favorite"),
     );
   }
 }
 
-class NumberDisplayer1000 extends StatelessWidget {
-  const NumberDisplayer1000({
-    super.key,
-    required this.currentNumber,
-    this.isPhat = false,
-  });
+class DepartureWidget extends StatelessWidget {
+  const DepartureWidget({super.key, required this.departure});
 
-  final int currentNumber;
-  final bool isPhat;
+  final Departure departure;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base =
-        isPhat ? theme.textTheme.displayMedium : theme.textTheme.bodyMedium;
-    final style = base!.copyWith(
-      color: theme.colorScheme.onPrimary,
-      fontFamily: "mono",
-    );
-    return Card(
-      color: theme.colorScheme.primary,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: isPhat ? 80 : 10,
-          vertical: isPhat ? 20 : 10,
-        ),
-        child: Text(currentNumber.toString(), style: style),
-      ),
-    );
-  }
-}
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  var selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget page;
-    switch (selectedIndex) {
-      case 0:
-        page = GeneratorPage();
+    Color bg;
+    Color fg;
+    switch (departure.type) {
+      case DepartureType.normal:
+        bg = theme.colorScheme.primary;
+        fg = theme.colorScheme.onPrimary;
         break;
-      case 1:
-        page = FavoritesPage();
+      case DepartureType.delayed:
+        bg = theme.colorScheme.secondary;
+        fg = theme.colorScheme.onSecondary;
         break;
-      default:
-        throw UnimplementedError('No widget');
+      case DepartureType.cancelled:
+        bg = theme.colorScheme.tertiary;
+        fg = theme.colorScheme.onTertiary;
+        break;
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Scaffold(
-          body: Row(
+
+    final timeTextDecoration =
+        departure.timeStrikethrough
+            ? TextDecoration.lineThrough
+            : TextDecoration.none;
+
+    IconData icon;
+    Color iconColor;
+    switch (departure.icon) {
+      case DepartureIcon.none:
+        icon = Icons.abc;
+        iconColor = Colors.black;
+      case DepartureIcon.check:
+        icon = Icons.check_rounded;
+        iconColor = theme.colorScheme.onPrimaryFixed;
+      case DepartureIcon.live:
+        icon = Icons.rss_feed;
+        iconColor = theme.colorScheme.onPrimaryFixedVariant;
+      case DepartureIcon.scheduled:
+        icon = Icons.calendar_month;
+        iconColor = theme.colorScheme.onPrimaryFixed;
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.all(Radius.circular(5)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 10, right: 10),
+          child: Row(
+            spacing: 10,
             children: [
-              SafeArea(
-                child: NavigationRail(
-                  extended: constraints.maxWidth >= 600,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.home),
-                      label: Text("Home"),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.favorite),
-                      label: Text("Favorite"),
-                    ),
-                  ],
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: (value) {
-                    setState(() {
-                      selectedIndex = value;
-                    });
-                  },
+              Text(
+                departure.time,
+                style: theme.textTheme.bodyMedium!.copyWith(
+                  color: fg,
+                  decoration: timeTextDecoration,
                 ),
               ),
-              Expanded(
-                child: Container(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  child: page,
+              Spacer(),
+              if (departure.secondaryText != null)
+                Text(
+                  departure.secondaryText!,
+                  style: theme.textTheme.bodyMedium!.copyWith(color: fg),
                 ),
-              ),
+
+              if (departure.icon != DepartureIcon.none)
+                Icon(icon, color: iconColor, size: 40),
             ],
           ),
-        );
-      },
-    );
-  }
-}
-
-class FavoritesPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    var state = context.watch<MyAppState>();
-    final theme = Theme.of(context);
-
-    return Column(
-      children: [
-        Text("Favorites", style: theme.textTheme.displayMedium),
-        Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            children:
-                state.favoriteNumbers.map((n) {
-                  return Row(
-                    spacing: 10,
-                    children: [
-                      NumberDisplayer1000(currentNumber: n),
-                      FavoriteButton(number: n),
-                    ],
-                  );
-                }).toList(),
-          ),
         ),
-      ],
+      ),
     );
   }
 }
