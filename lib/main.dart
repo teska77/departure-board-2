@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'departure.dart';
+import 'package:window_manager/window_manager.dart';
+import 'departure_model.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+  final options = WindowOptions(size: Size(1920, 360));
+  windowManager.waitUntilReadyToShow(options, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
   runApp(TrainboardApp());
 }
 
@@ -41,6 +50,10 @@ class TrainboardApp extends StatelessWidget {
             onPrimaryFixedVariant: Color(0xffc5b019),
           ),
           textTheme: TextTheme(
+            titleMedium: GoogleFonts.roboto(
+              fontSize: 45,
+              fontWeight: FontWeight.w200,
+            ),
             bodyMedium: GoogleFonts.robotoMono(
               fontSize: 40,
               fontWeight: FontWeight.normal,
@@ -58,47 +71,115 @@ class MainPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final station = StationData(
+      name: "Chessington South",
+      logo: StationLogo.southWesternRailway,
+      departures: [
+        Departure.bus(time: "12m", secondaryText: "Kingston", isLive: true),
+        Departure.bus(time: "31m", secondaryText: "Kingston", isLive: false),
+        Departure.train(
+          time: "16:34",
+          type: DepartureType.delayed,
+          secondaryText: "16:38",
+        ),
+        Departure.train(
+          time: "17:04",
+          type: DepartureType.cancelled,
+          secondaryText: "Cancelled",
+        ),
+      ],
+    );
+
+    final station2 = StationData(
+      name: "Wim Thameslink",
+      logo: StationLogo.thamesLink,
+      departures: [
+        Departure.train(time: "16:34", type: DepartureType.normal),
+        Departure.train(time: "17:04", type: DepartureType.normal),
+      ],
+    );
+    final station3 = StationData(
+      name: "Rushett Lane",
+      logo: StationLogo.digico,
+      departures: [
+        Departure.train(time: "16:34", type: DepartureType.normal),
+        Departure.train(time: "17:04", type: DepartureType.normal),
+      ],
+    );
     return Scaffold(
-      body: Column(
+      body: Row(
         children: [
-          DepartureWidget(
-            departure: Departure.train(
-              time: "16:05",
-              type: DepartureType.normal,
-            ),
-          ),
-          DepartureWidget(
-            departure: Departure.train(
-              time: "16:05",
-              type: DepartureType.normal,
-            ),
-          ),
-          DepartureWidget(
-            departure: Departure.bus(
-              time: "11m",
-              secondaryText: "Kingston",
-              isLive: true,
-            ),
-          ),
-          DepartureWidget(
-            departure: Departure.bus(
-              time: "31m",
-              secondaryText: "Kingston",
-              isLive: false,
-            ),
-          ),
-          DepartureWidget(
-            departure: Departure.train(
-              time: "16:34",
-              type: DepartureType.delayed,
-              secondaryText: "16:38",
-            ),
-          ),
-          DepartureWidget(
-            departure: Departure.train(
-              time: "17:04",
-              type: DepartureType.cancelled,
-              secondaryText: "Cancelled",
+          Expanded(child: StationWidget(station: station)),
+          Expanded(child: StationWidget(station: station2)),
+          Expanded(child: StationWidget(station: station3)),
+          Expanded(child: StationWidget(station: station2)),
+        ],
+      ),
+    );
+  }
+}
+
+class StationWidget extends StatelessWidget {
+  final StationData station;
+
+  const StationWidget({super.key, required this.station});
+
+  @override
+  Widget build(BuildContext context) {
+    final svgHeight = 40.0;
+
+    Widget logo;
+    switch (station.logo) {
+      case StationLogo.southWesternRailway:
+        logo = SvgPicture.asset("assets/swr_logo.svg", height: svgHeight);
+        break;
+      case StationLogo.thamesLink:
+        logo = SvgPicture.asset(
+          "assets/thameslink_logo.svg",
+          height: svgHeight,
+        );
+        break;
+      case StationLogo.tflBus:
+        logo = SvgPicture.asset("assets/buses_roundel.svg", height: svgHeight);
+        break;
+      case StationLogo.digico:
+        logo = SvgPicture.asset("assets/digico.svg", height: svgHeight);
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        children: [
+          TitleCard(title: station.name, icon: logo),
+          for (final departure in station.departures)
+            DepartureWidget(departure: departure),
+        ],
+      ),
+    );
+  }
+}
+
+class TitleCard extends StatelessWidget {
+  final String title;
+  final Widget icon;
+
+  const TitleCard({super.key, required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 10, right: 10),
+      child: Row(
+        spacing: 10,
+        children: [
+          icon,
+          Text(
+            title,
+            style: theme.textTheme.titleMedium!.copyWith(
+              color: theme.colorScheme.onPrimary,
             ),
           ),
         ],
@@ -156,7 +237,7 @@ class DepartureWidget extends StatelessWidget {
     }
 
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+      padding: EdgeInsets.only(top: 5, bottom: 5),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: bg,

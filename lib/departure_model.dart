@@ -32,3 +32,17 @@ class Departure {
        timeStrikethrough = false,
        icon = isLive ? DepartureIcon.live : DepartureIcon.scheduled;
 }
+
+enum StationLogo { southWesternRailway, thamesLink, tflBus, digico }
+
+class StationData {
+  final String name;
+  final StationLogo logo;
+  final List<Departure> departures;
+
+  StationData({
+    required this.name,
+    required this.logo,
+    required this.departures,
+  });
+}

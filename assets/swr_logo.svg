@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="16.642292mm"
+   height="16.615833mm"
+   viewBox="0 0 16.642292 16.615833"
+   version="1.1"
+   id="svg882"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="swr_logo_inkscape.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview884"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="2.1341967"
+     inkscape:cx="229.36031"
+     inkscape:cy="262.62809"
+     inkscape:window-width="1920"
+     inkscape:window-height="1022"
+     inkscape:window-x="0"
+     inkscape:window-y="30"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs879" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-28.847684,-28.510265)">
+    <path
+       id="Fill-40"
+       class="st3"
+       d="M 44.907893,28.510265 H 29.535602 c -0.3175,0 -0.661458,0.291042 -0.661458,0.608542 0,0 0,0.555625 0,0.555625 v 1.164166 c 0,0.343959 0.264583,0.635 0.582083,0.635 h 10.768541 c 0,0 -2.725208,2.725208 -2.963333,2.936875 h -7.725833 c -0.396875,0 -0.661458,0.291042 -0.661458,0.635 v 1.74625 c 0,0.343958 0.291041,0.608542 0.582083,0.608542 h 4.788958 l -5.159375,5.185833 c -0.15875,0.15875 -0.238125,0.396875 -0.238125,0.608542 v 1.27 c 0,0.3175 0.291042,0.608541 0.608542,0.608541 h 1.296458 c 0.264584,0 0.449792,-0.07937 0.582084,-0.211666 l 11.112499,-11.1125 v 3.889375 l -6.746875,6.852708 c -0.185208,0.15875 -0.15875,0.635 0.343959,0.635 h 2.8575 c 0.3175,0 0.502708,-0.07937 0.714375,-0.291042 l 2.883958,-2.883958 v 2.619375 c 0,0.3175 0.291042,0.555625 0.635,0.555625 h 1.799167 c 0.3175,0 0.555625,-0.238125 0.555625,-0.555625 V 29.06589 c -0.02646,-0.3175 -0.264584,-0.555625 -0.582084,-0.555625"
+       style="fill:#0092cb;stroke-width:0.264583" />
+  </g>
+</svg>
