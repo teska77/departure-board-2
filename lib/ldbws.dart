@@ -82,7 +82,7 @@ class LdbwsService extends StationDepartureService {
         "soap-env:Envelope",
         nest: () {
           builder.attribute(
-            "xlmns:soap-env",
+            "xmlns:soap-env",
             "http://schemas.xmlsoap.org/soap/envelope/",
           );
           builder.element(
@@ -92,7 +92,7 @@ class LdbwsService extends StationDepartureService {
                 "ns0:AccessToken",
                 nest: () {
                   builder.attribute(
-                    "xlmns:ns0",
+                    "xmlns:ns0",
                     "http://thalesgroup.com/RTTI/2013-11-28/Token/types",
                   );
                   builder.element(
@@ -112,7 +112,7 @@ class LdbwsService extends StationDepartureService {
                 "ns0:GetDepartureBoardRequest",
                 nest: () {
                   builder.attribute(
-                    "xlmns:ns0",
+                    "xmlns:ns0",
                     "http://thalesgroup.com/RTTI/2021-11-01/ldb/",
                   );
                   builder.element(
@@ -134,16 +134,23 @@ class LdbwsService extends StationDepartureService {
         },
       );
 
-      final depboardRequestDoc = builder.buildDocument().toString();
+      final depboardRequestDoc = builder.buildDocument().toXmlString(
+        pretty: false,
+      );
+
+      print(depboardRequestDoc);
 
       final soap12Response = await http.post(
-        headers: {"Content-Type": "text/xml"},
+        headers: {
+          "Content-Type": "text/xml; charset=utf-8",
+          "SOAPAction":
+              "\"http://thalesgroup.com/RTTI/2012-01-13/ldb/GetDepartureBoard\"",
+        },
         Uri.parse(soap12Location),
         body: depboardRequestDoc,
       );
-      print(soap12Response.body);
 
-      return StationData.error(soap12Response.body);
+      return StationData.error("${soap12Response.body}");
     } catch (e) {
       return StationData.error("$e");
     }
