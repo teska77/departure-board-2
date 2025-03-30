@@ -40,11 +40,11 @@ class StationData {
   final List<Departure> departures;
 
   StationData({required this.departures, this.errorText});
-
+  StationData.departures(this.departures) : errorText = null;
   StationData.error(this.errorText) : departures = [];
 }
 
-abstract class StationDepartureService{
+abstract class StationDepartureService {
   final String name;
   final StationLogo logo;
   final Duration pollTime;

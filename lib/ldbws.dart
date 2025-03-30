@@ -8,9 +8,14 @@ const String API_KEY = "e3d8b441-61aa-4ce8-9709-6872af719b2a";
 
 class LdbwsService extends StationDepartureService {
   final String crs;
+  final bool reportDestination;
 
-  LdbwsService({required this.crs, required super.name, required super.logo})
-    : super(pollTime: Duration(seconds: 5));
+  LdbwsService({
+    required this.crs,
+    required super.name,
+    required super.logo,
+    this.reportDestination = false,
+  }) : super(pollTime: Duration(seconds: 5));
 
   @override
   Future<StationData> getLatest() async {
@@ -78,25 +83,27 @@ class LdbwsService extends StationDepartureService {
 
       final builder = XmlBuilder();
       builder.processing('xml', "version='1.0' encoding='utf-8'");
+      final soapEnvNs = "http://schemas.xmlsoap.org/soap/envelope/";
+      final tokenNs = "http://thalesgroup.com/RTTI/2013-11-28/Token/types";
+      final ldbNs = "http://thalesgroup.com/RTTI/2021-11-01/ldb/";
+
       builder.element(
-        "soap-env:Envelope",
+        "Envelope",
+        namespace: soapEnvNs,
         nest: () {
-          builder.attribute(
-            "xmlns:soap-env",
-            "http://schemas.xmlsoap.org/soap/envelope/",
-          );
+          builder.namespace(soapEnvNs, "soap-env");
           builder.element(
-            "soap-env:Header",
+            "Header",
+            namespace: soapEnvNs,
             nest: () {
               builder.element(
-                "ns0:AccessToken",
+                "AccessToken",
+                namespace: tokenNs,
                 nest: () {
-                  builder.attribute(
-                    "xmlns:ns0",
-                    "http://thalesgroup.com/RTTI/2013-11-28/Token/types",
-                  );
+                  builder.namespace(tokenNs, "token");
                   builder.element(
-                    "ns0:TokenValue",
+                    "TokenValue",
+                    namespace: tokenNs,
                     nest: () {
                       builder.text(API_KEY);
                     },
@@ -106,23 +113,24 @@ class LdbwsService extends StationDepartureService {
             },
           );
           builder.element(
-            "soap-env:Body",
+            "Body",
+            namespace: soapEnvNs,
             nest: () {
               builder.element(
-                "ns0:GetDepartureBoardRequest",
+                "GetDepartureBoardRequest",
+                namespace: ldbNs,
                 nest: () {
-                  builder.attribute(
-                    "xmlns:ns0",
-                    "http://thalesgroup.com/RTTI/2021-11-01/ldb/",
-                  );
+                  builder.namespace(ldbNs, "ldb");
                   builder.element(
-                    "ns0:numRows",
+                    "numRows",
+                    namespace: ldbNs,
                     nest: () {
                       builder.text("30");
                     },
                   );
                   builder.element(
-                    "ns0:crs",
+                    "crs",
+                    namespace: ldbNs,
                     nest: () {
                       builder.text(crs);
                     },
@@ -134,6 +142,12 @@ class LdbwsService extends StationDepartureService {
         },
       );
 
+      // DANGER: the default XmlDocument.toString pretty-prints it. This adds
+      // undue whitespace in the AccessToken/TokenValue field which breaks the
+      // auth because of shit implementation on LDBWS's side.
+      //
+      // Explicitly don't pretty print it so there's no whitespace around the
+      // auth token
       final depboardRequestDoc = builder.buildDocument().toXmlString(
         pretty: false,
       );
@@ -150,9 +164,96 @@ class LdbwsService extends StationDepartureService {
         body: depboardRequestDoc,
       );
 
-      return StationData.error("${soap12Response.body}");
+      return parseGetDepartureBoardResponse(soap12Response.body);
     } catch (e) {
       return StationData.error("$e");
     }
+  }
+
+  StationData parseGetDepartureBoardResponse(String responseBody) {
+    // local-name() selects node name without namespace as all of the results
+    // have namespace spam
+    final servicesQuery =
+        "/soap:Envelope/soap:Body/*[local-name() = 'GetDepartureBoardResponse']/*[local-name() = 'GetStationBoardResult']/*[local-name() = 'trainServices']/*[local-name() = 'service']";
+    final doc = XmlDocument.parse(responseBody);
+    final results = doc.xpath(servicesQuery);
+    final departures = results.map((node) {
+      // <lt8:service>
+      //     <lt4:std>22:00</lt4:std>
+      //     <lt4:etd>On time</lt4:etd>
+      //     <lt4:platform>5</lt4:platform>
+      //     <lt4:operator>
+      //         London North Eastern Railway
+      //     </lt4:operator>
+      //     <lt4:operatorCode>GR</lt4:operatorCode>
+      //     <lt4:serviceType>train</lt4:serviceType>
+      //     <lt4:serviceID>447492KNGX____</lt4:serviceID>
+      //     <lt5:rsid>GR474100</lt5:rsid>
+      //     <lt5:origin>
+      //         <lt4:location>
+      //             <lt4:locationName>
+      //                 London Kings Cross
+      //             </lt4:locationName>
+      //             <lt4:crs>KGX</lt4:crs>
+      //         </lt4:location>
+      //     </lt5:origin>
+      //     <lt5:destination>
+      //         <lt4:location>
+      //             <lt4:locationName>Newcastle</lt4:locationName>
+      //             <lt4:crs>NCL</lt4:crs>
+      //         </lt4:location>
+      //     </lt5:destination>
+      // </lt8:service>
+      final stdNode = node.xpath("*[local-name() = 'std']").firstOrNull;
+      if (stdNode == null) {
+        throw Exception("Couldn't find `std` node via xpath query");
+      }
+
+      final etdNode = node.xpath("*[local-name() = 'etd']").firstOrNull;
+      if (etdNode == null) {
+        throw Exception("Couldn't find `etd` node via xpath query");
+      }
+      var type = DepartureType.normal;
+      String? secondaryText = etdNode.innerText;
+      switch (etdNode.innerText.toLowerCase()) {
+        case "on time":
+          type = DepartureType.normal;
+          secondaryText = null;
+          break;
+        case "cancelled":
+        case "no report":
+          type = DepartureType.cancelled;
+          break;
+        default:
+          type = DepartureType.delayed;
+          break;
+      }
+
+      if (reportDestination) {
+        final destNode =
+            node
+                .xpath(
+                  "*[local-name() = 'destination']/*[local-name() = 'location']/*[local-name() = 'locationName']",
+                )
+                .firstOrNull;
+        // messy but who cares
+        if (destNode != null) {
+          if (secondaryText == null) {
+            secondaryText = "";
+          } else {
+            secondaryText = " $secondaryText";
+          }
+
+          secondaryText = "${destNode.innerText}$secondaryText";
+        }
+      }
+
+      return Departure.train(
+        time: stdNode.innerText,
+        type: type,
+        secondaryText: secondaryText,
+      );
+    });
+    return StationData.departures(departures.toList());
   }
 }

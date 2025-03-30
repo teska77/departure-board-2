@@ -23,7 +23,12 @@ Future<void> main() async {
       create:
           (context) => TrainboardState([
             TflBusDepartureService(naptanCode: "490000138F", name: "Bussy"),
-            LdbwsService(crs: "KGX", name: "Bussy", logo: StationLogo.southWesternRailway),
+            LdbwsService(
+              crs: "BFR",
+              name: "Bussy",
+              logo: StationLogo.southWesternRailway,
+              reportDestination: true,
+            ),
           ]),
       child: const TrainboardApp(),
     ),
@@ -187,8 +192,13 @@ class StationWidget extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Column(
-        children: [TitleCard(title: name, icon: logoWidget), ...departuresList],
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            TitleCard(title: name, icon: logoWidget),
+            ...departuresList,
+          ],
+        ),
       ),
     );
   }
@@ -336,11 +346,13 @@ class DepartureWidget extends StatelessWidget {
                       Flexible(
                         child: Text(
                           departure.secondaryText!,
-                          style: theme.textTheme.bodyMedium!.copyWith(color: fg),
+                          style: theme.textTheme.bodyMedium!.copyWith(
+                            color: fg,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                
+
                     if (departure.icon != DepartureIcon.none)
                       Icon(icon, color: iconColor, size: 40),
                   ],

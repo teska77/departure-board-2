@@ -16,10 +16,9 @@ class TflBusDepartureService extends StationDepartureService {
         Uri.parse("https://api.tfl.gov.uk/StopPoint/$naptanCode/Arrivals"),
       );
       if (response.statusCode == 200) {
-        final arrivals =
-            jsonDecode(response.body) as List<dynamic>;
-        return StationData(
-          departures: arrivals.map((j) => parseDeparture(j)).toList(),
+        final arrivals = jsonDecode(response.body) as List<dynamic>;
+        return StationData.departures(
+          arrivals.map((j) => parseDeparture(j)).toList(),
         );
       } else {
         return StationData.error("Got HTTP ${response.statusCode}");
