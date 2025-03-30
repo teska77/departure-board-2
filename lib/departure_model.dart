@@ -36,13 +36,24 @@ class Departure {
 enum StationLogo { southWesternRailway, thamesLink, tflBus, digico }
 
 class StationData {
-  final String name;
-  final StationLogo logo;
+  final String? errorText;
   final List<Departure> departures;
 
-  StationData({
+  StationData({required this.departures, this.errorText});
+
+  StationData.error(this.errorText) : departures = [];
+}
+
+abstract class StationDepartureService{
+  final String name;
+  final StationLogo logo;
+  final Duration pollTime;
+
+  StationDepartureService({
     required this.name,
     required this.logo,
-    required this.departures,
+    this.pollTime = const Duration(seconds: 5),
   });
+
+  Future<StationData> getLatest();
 }

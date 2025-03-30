@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:depboard2_flutter/tfl_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,18 +8,55 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'departure_model.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
   final options = WindowOptions(size: Size(1920, 360));
-  windowManager.waitUntilReadyToShow(options, () async {
+  await windowManager.waitUntilReadyToShow(options, () async {
     await windowManager.show();
     await windowManager.focus();
   });
-  runApp(TrainboardApp());
+
+  runApp(
+    ChangeNotifierProvider(
+      create:
+          (context) => TrainboardState([
+            TflBusDepartureService(naptanCode: "490000138F", name: "Bussy"),
+          ]),
+      child: const TrainboardApp(),
+    ),
+  );
 }
 
-class TrainboardState extends ChangeNotifier {}
+class StationDepartureState {
+  final StationDepartureService service;
+  StationData data = StationData.error("Not yet polled");
+
+  StationDepartureState({required this.service});
+}
+
+class TrainboardState extends ChangeNotifier {
+  late final List<StationDepartureState> stationStates;
+
+  TrainboardState(List<StationDepartureService> services) {
+    stationStates =
+        services.map((service) {
+          var depState = StationDepartureState(service: service);
+          Timer.periodic(
+            service.pollTime,
+            (t) async => onTimerExpired(depState),
+          );
+          return depState;
+        }).toList();
+  }
+
+  Future<void> onTimerExpired(StationDepartureState state) async {
+    state.data = await state.service.getLatest();
+    // TODO(liam) change notification could be per-service to avoid everything
+    // redrawing
+    notifyListeners();
+  }
+}
 
 class TrainboardApp extends StatelessWidget {
   const TrainboardApp({super.key});
@@ -24,44 +64,45 @@ class TrainboardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final commonTextColor = Color(0xffeeeeee);
-    return ChangeNotifierProvider(
-      create: (context) => TrainboardState(),
-      child: MaterialApp(
-        title: 'Trainboard',
-        theme: ThemeData(
-          scaffoldBackgroundColor: Color(0xff212121),
-          useMaterial3: false,
-          colorScheme: ColorScheme.dark(
-            // primary = normal
-            primary: Color(0xff313131),
-            onPrimary: commonTextColor,
+    return MaterialApp(
+      title: 'Trainboard',
+      theme: ThemeData(
+        scaffoldBackgroundColor: Color(0xff212121),
+        useMaterial3: false,
+        colorScheme: ColorScheme.dark(
+          // primary = normal
+          primary: Color(0xff313131),
+          onPrimary: commonTextColor,
 
-            // secondary = delayed
-            secondary: Color(0xff664f0e),
-            onSecondary: commonTextColor,
+          // secondary = delayed
+          secondary: Color(0xff664f0e),
+          onSecondary: commonTextColor,
 
-            // tertiary = cancelled
-            tertiary: Color(0xff5a1919),
-            onTertiary: commonTextColor,
+          // tertiary = cancelled
+          tertiary: Color(0xff5a1919),
+          onTertiary: commonTextColor,
 
-            // used for lowkey icons on primary
-            onPrimaryFixed: Color(0xff5b5b5b),
-            // used for pop icons on primary
-            onPrimaryFixedVariant: Color(0xffc5b019),
+          // used for lowkey icons on primary
+          onPrimaryFixed: Color(0xff5b5b5b),
+          // used for pop icons on primary
+          onPrimaryFixedVariant: Color(0xffc5b019),
+        ),
+        textTheme: TextTheme(
+          titleMedium: GoogleFonts.roboto(
+            fontSize: 38,
+            fontWeight: FontWeight.w200,
           ),
-          textTheme: TextTheme(
-            titleMedium: GoogleFonts.roboto(
-              fontSize: 45,
-              fontWeight: FontWeight.w200,
-            ),
-            bodyMedium: GoogleFonts.robotoMono(
-              fontSize: 40,
-              fontWeight: FontWeight.normal,
-            ),
+          bodyMedium: GoogleFonts.robotoMono(
+            fontSize: 35,
+            fontWeight: FontWeight.normal,
+          ),
+          bodySmall: GoogleFonts.robotoMono(
+            fontSize: 20,
+            fontWeight: FontWeight.w200,
           ),
         ),
-        home: MainPage(),
       ),
+      home: MainPage(),
     );
   }
 }
@@ -71,90 +112,81 @@ class MainPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final station = StationData(
-      name: "Chessington South",
-      logo: StationLogo.southWesternRailway,
-      departures: [
-        Departure.bus(time: "12m", secondaryText: "Kingston", isLive: true),
-        Departure.bus(time: "31m", secondaryText: "Kingston", isLive: false),
-        Departure.train(
-          time: "16:34",
-          type: DepartureType.delayed,
-          secondaryText: "16:38",
-        ),
-        Departure.train(
-          time: "17:04",
-          type: DepartureType.cancelled,
-          secondaryText: "Cancelled",
-        ),
-      ],
-    );
-
-    final station2 = StationData(
-      name: "Wim Thameslink",
-      logo: StationLogo.thamesLink,
-      departures: [
-        Departure.train(time: "16:34", type: DepartureType.normal),
-        Departure.train(time: "17:04", type: DepartureType.normal),
-      ],
-    );
-    final station3 = StationData(
-      name: "Rushett Lane",
-      logo: StationLogo.digico,
-      departures: [
-        Departure.train(time: "16:34", type: DepartureType.normal),
-        Departure.train(time: "17:04", type: DepartureType.normal),
-      ],
-    );
     return Scaffold(
-      body: Row(
-        children: [
-          Expanded(child: StationWidget(station: station)),
-          Expanded(child: StationWidget(station: station2)),
-          Expanded(child: StationWidget(station: station3)),
-          Expanded(child: StationWidget(station: station2)),
-        ],
+      body: Consumer<TrainboardState>(
+        builder: (_, state, _) {
+          return Row(
+            children:
+                state.stationStates
+                    .map(
+                      (station) => Expanded(
+                        child: StationWidget(
+                          station: station.data,
+                          name: station.service.name,
+                          logo: station.service.logo,
+                        ),
+                      ),
+                    )
+                    .toList(),
+          );
+        },
       ),
     );
   }
 }
 
 class StationWidget extends StatelessWidget {
+  final String name;
+  final StationLogo logo;
   final StationData station;
 
-  const StationWidget({super.key, required this.station});
+  const StationWidget({
+    super.key,
+    required this.station,
+    required this.name,
+    required this.logo,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final svgHeight = 40.0;
+    final svgHeight = 30.0;
 
-    Widget logo;
-    switch (station.logo) {
+    Widget logoWidget;
+    switch (logo) {
       case StationLogo.southWesternRailway:
-        logo = SvgPicture.asset("assets/swr_logo.svg", height: svgHeight);
+        logoWidget = SvgPicture.asset("assets/swr_logo.svg", height: svgHeight);
         break;
       case StationLogo.thamesLink:
-        logo = SvgPicture.asset(
+        logoWidget = SvgPicture.asset(
           "assets/thameslink_logo.svg",
           height: svgHeight,
         );
         break;
       case StationLogo.tflBus:
-        logo = SvgPicture.asset("assets/buses_roundel.svg", height: svgHeight);
+        logoWidget = SvgPicture.asset(
+          "assets/buses_roundel.svg",
+          height: svgHeight,
+        );
         break;
       case StationLogo.digico:
-        logo = SvgPicture.asset("assets/digico.svg", height: svgHeight);
+        logoWidget = SvgPicture.asset("assets/digico.svg", height: svgHeight);
         break;
+    }
+
+    List<Widget> departuresList;
+    if (station.errorText != null) {
+      departuresList = [StationErrorWidget(errorText: station.errorText!)];
+    } else {
+      departuresList =
+          station.departures
+              .map((dep) => DepartureWidget(departure: dep))
+              .toList();
     }
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
-        children: [
-          TitleCard(title: station.name, icon: logo),
-          for (final departure in station.departures)
-            DepartureWidget(departure: departure),
-        ],
+        children: [TitleCard(title: name, icon: logoWidget), ...departuresList],
       ),
     );
   }
@@ -183,6 +215,45 @@ class TitleCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class StationErrorWidget extends StatelessWidget {
+  final errorText;
+  const StationErrorWidget({super.key, required this.errorText});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bg = theme.colorScheme.tertiary;
+    final fg = theme.colorScheme.onTertiary;
+
+    return Container(
+      padding: EdgeInsets.only(top: 5, bottom: 5),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.all(Radius.circular(5)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 10, right: 10),
+          child: Column(
+            children: [
+              Text(
+                "Error",
+                style: theme.textTheme.bodyMedium!.copyWith(color: fg),
+              ),
+              FittedBox(
+                child: Text(
+                  errorText,
+                  style: theme.textTheme.bodySmall!.copyWith(color: fg),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
