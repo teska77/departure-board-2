@@ -9,12 +9,15 @@ const String API_KEY = "e3d8b441-61aa-4ce8-9709-6872af719b2a";
 class LdbwsService extends StationDepartureService {
   final String crs;
   final bool reportDestination;
+  final String? operatorCodeFilter;
+  final numRowsToRequest = 50;
 
   LdbwsService({
     required this.crs,
     required super.name,
     required super.logo,
     this.reportDestination = false,
+    this.operatorCodeFilter,
   }) : super(pollTime: Duration(seconds: 5));
 
   @override
@@ -125,7 +128,7 @@ class LdbwsService extends StationDepartureService {
                     "numRows",
                     namespace: ldbNs,
                     nest: () {
-                      builder.text("30");
+                      builder.text(numRowsToRequest.toString());
                     },
                   );
                   builder.element(
@@ -177,83 +180,98 @@ class LdbwsService extends StationDepartureService {
         "/soap:Envelope/soap:Body/*[local-name() = 'GetDepartureBoardResponse']/*[local-name() = 'GetStationBoardResult']/*[local-name() = 'trainServices']/*[local-name() = 'service']";
     final doc = XmlDocument.parse(responseBody);
     final results = doc.xpath(servicesQuery);
-    final departures = results.map((node) {
-      // <lt8:service>
-      //     <lt4:std>22:00</lt4:std>
-      //     <lt4:etd>On time</lt4:etd>
-      //     <lt4:platform>5</lt4:platform>
-      //     <lt4:operator>
-      //         London North Eastern Railway
-      //     </lt4:operator>
-      //     <lt4:operatorCode>GR</lt4:operatorCode>
-      //     <lt4:serviceType>train</lt4:serviceType>
-      //     <lt4:serviceID>447492KNGX____</lt4:serviceID>
-      //     <lt5:rsid>GR474100</lt5:rsid>
-      //     <lt5:origin>
-      //         <lt4:location>
-      //             <lt4:locationName>
-      //                 London Kings Cross
-      //             </lt4:locationName>
-      //             <lt4:crs>KGX</lt4:crs>
-      //         </lt4:location>
-      //     </lt5:origin>
-      //     <lt5:destination>
-      //         <lt4:location>
-      //             <lt4:locationName>Newcastle</lt4:locationName>
-      //             <lt4:crs>NCL</lt4:crs>
-      //         </lt4:location>
-      //     </lt5:destination>
-      // </lt8:service>
-      final stdNode = node.xpath("*[local-name() = 'std']").firstOrNull;
-      if (stdNode == null) {
-        throw Exception("Couldn't find `std` node via xpath query");
-      }
-
-      final etdNode = node.xpath("*[local-name() = 'etd']").firstOrNull;
-      if (etdNode == null) {
-        throw Exception("Couldn't find `etd` node via xpath query");
-      }
-      var type = DepartureType.normal;
-      String? secondaryText = etdNode.innerText;
-      switch (etdNode.innerText.toLowerCase()) {
-        case "on time":
-          type = DepartureType.normal;
-          secondaryText = null;
-          break;
-        case "cancelled":
-        case "no report":
-          type = DepartureType.cancelled;
-          break;
-        default:
-          type = DepartureType.delayed;
-          break;
-      }
-
-      if (reportDestination) {
-        final destNode =
-            node
-                .xpath(
-                  "*[local-name() = 'destination']/*[local-name() = 'location']/*[local-name() = 'locationName']",
-                )
-                .firstOrNull;
-        // messy but who cares
-        if (destNode != null) {
-          if (secondaryText == null) {
-            secondaryText = "";
-          } else {
-            secondaryText = " $secondaryText";
+    // <lt8:service>
+    //     <lt4:std>22:00</lt4:std>
+    //     <lt4:etd>On time</lt4:etd>
+    //     <lt4:platform>5</lt4:platform>
+    //     <lt4:operator>
+    //         London North Eastern Railway
+    //     </lt4:operator>
+    //     <lt4:operatorCode>GR</lt4:operatorCode>
+    //     <lt4:serviceType>train</lt4:serviceType>
+    //     <lt4:serviceID>447492KNGX____</lt4:serviceID>
+    //     <lt5:rsid>GR474100</lt5:rsid>
+    //     <lt5:origin>
+    //         <lt4:location>
+    //             <lt4:locationName>
+    //                 London Kings Cross
+    //             </lt4:locationName>
+    //             <lt4:crs>KGX</lt4:crs>
+    //         </lt4:location>
+    //     </lt5:origin>
+    //     <lt5:destination>
+    //         <lt4:location>
+    //             <lt4:locationName>Newcastle</lt4:locationName>
+    //             <lt4:crs>NCL</lt4:crs>
+    //         </lt4:location>
+    //     </lt5:destination>
+    // </lt8:service>
+    final departures = results
+        .where((node) {
+          // Filter based on op code if applicable
+          if (operatorCodeFilter != null) {
+            final operatorCodeNode =
+                node.xpath("*[local-name()='operatorCode']").firstOrNull;
+            if (operatorCodeNode == null) {
+              throw Exception("Couldn't find `std` node via xpath query");
+            }
+            if (operatorCodeFilter!.toLowerCase() !=
+                operatorCodeNode.innerText.toLowerCase()) {
+              return false;
+            }
+          }
+          return true;
+        })
+        .map((node) {
+          final stdNode = node.xpath("*[local-name()='std']").firstOrNull;
+          if (stdNode == null) {
+            throw Exception("Couldn't find `std` node via xpath query");
           }
 
-          secondaryText = "${destNode.innerText}$secondaryText";
-        }
-      }
+          final etdNode = node.xpath("*[local-name()='etd']").firstOrNull;
+          if (etdNode == null) {
+            throw Exception("Couldn't find `etd` node via xpath query");
+          }
+          var type = DepartureType.normal;
+          String? secondaryText = etdNode.innerText;
+          switch (etdNode.innerText.toLowerCase()) {
+            case "on time":
+              type = DepartureType.normal;
+              secondaryText = null;
+              break;
+            case "cancelled":
+            case "no report":
+              type = DepartureType.cancelled;
+              break;
+            default:
+              type = DepartureType.delayed;
+              break;
+          }
 
-      return Departure.train(
-        time: stdNode.innerText,
-        type: type,
-        secondaryText: secondaryText,
-      );
-    });
+          if (reportDestination) {
+            final destNode =
+                node
+                    .xpath(
+                      "*[local-name()='destination']/*[local-name()='location']/*[local-name()='locationName']",
+                    )
+                    .firstOrNull;
+            // messy but who cares
+            if (destNode != null) {
+              if (secondaryText == null) {
+                secondaryText = "${destNode.innerText}";
+              } else {
+                secondaryText = "$secondaryText ${destNode.innerText}";
+              }
+
+            }
+          }
+
+          return Departure.train(
+            time: stdNode.innerText,
+            type: type,
+            secondaryText: secondaryText,
+          );
+        });
     return StationData.departures(departures.toList());
   }
 }

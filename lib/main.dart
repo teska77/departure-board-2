@@ -18,18 +18,28 @@ Future<void> main() async {
   //  await windowManager.focus();
   //});
 
+  final state = TrainboardState([
+    TflBusDepartureService(naptanCode: "490000138F", name: "Bussy"),
+    LdbwsService(
+      crs: "CSS",
+      name: "Chessington",
+      logo: StationLogo.southWesternRailway,
+      reportDestination: false,
+    ),
+    LdbwsService(
+      crs: "WIM",
+      name: "Wim Thameslink",
+      logo: StationLogo.thamesLink,
+      reportDestination: true,
+      operatorCodeFilter: "TL",
+    ),
+  ]);
+
+  await state.runInitialQueries();
+
   runApp(
     ChangeNotifierProvider(
-      create:
-          (context) => TrainboardState([
-            TflBusDepartureService(naptanCode: "490000138F", name: "Bussy"),
-            LdbwsService(
-              crs: "BFR",
-              name: "Bussy",
-              logo: StationLogo.southWesternRailway,
-              reportDestination: true,
-            ),
-          ]),
+      create: (context) => state,
       child: const TrainboardApp(),
     ),
   );
@@ -62,6 +72,11 @@ class TrainboardState extends ChangeNotifier {
     // TODO(liam) change notification could be per-service to avoid everything
     // redrawing
     notifyListeners();
+  }
+
+  Future<void> runInitialQueries() async {
+    final queries = stationStates.map((s) => s.service.getLatest()).toList();
+    await Future.wait(queries);
   }
 }
 
@@ -192,13 +207,15 @@ class StationWidget extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            TitleCard(title: name, icon: logoWidget),
-            ...departuresList,
-          ],
-        ),
+      child: Column(
+        children: [
+          TitleCard(title: name, icon: logoWidget),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(children: departuresList),
+            ),
+          ),
+        ],
       ),
     );
   }
