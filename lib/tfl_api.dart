@@ -19,7 +19,7 @@ class TflBusDepartureService extends StationDepartureService {
         final arrivals =
             jsonDecode(response.body) as List<dynamic>;
         return StationData(
-          departures: arrivals.take(4).map((j) => parseDeparture(j)).toList(),
+          departures: arrivals.map((j) => parseDeparture(j)).toList(),
         );
       } else {
         return StationData.error("Got HTTP ${response.statusCode}");

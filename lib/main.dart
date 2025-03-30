@@ -1,27 +1,29 @@
 import 'dart:async';
 
+import 'package:depboard2_flutter/ldbws.dart';
 import 'package:depboard2_flutter/tfl_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:window_manager/window_manager.dart';
+// import 'package:window_manager/window_manager.dart';
 import 'departure_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await windowManager.ensureInitialized();
-  final options = WindowOptions(size: Size(1920, 360));
-  await windowManager.waitUntilReadyToShow(options, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
+  //await windowManager.ensureInitialized();
+  //final options = WindowOptions(size: Size(1920, 360));
+  //await windowManager.waitUntilReadyToShow(options, () async {
+  //  await windowManager.show();
+  //  await windowManager.focus();
+  //});
 
   runApp(
     ChangeNotifierProvider(
       create:
           (context) => TrainboardState([
             TflBusDepartureService(naptanCode: "490000138F", name: "Bussy"),
+            LdbwsService(crs: "KGX", name: "Bussy", logo: StationLogo.southWesternRailway),
           ]),
       child: const TrainboardApp(),
     ),
@@ -221,7 +223,7 @@ class TitleCard extends StatelessWidget {
 }
 
 class StationErrorWidget extends StatelessWidget {
-  final errorText;
+  final String errorText;
   const StationErrorWidget({super.key, required this.errorText});
 
   @override
@@ -317,7 +319,7 @@ class DepartureWidget extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(left: 10, right: 10),
           child: Row(
-            spacing: 10,
+            spacing: 30,
             children: [
               Text(
                 departure.time,
@@ -326,15 +328,24 @@ class DepartureWidget extends StatelessWidget {
                   decoration: timeTextDecoration,
                 ),
               ),
-              Spacer(),
-              if (departure.secondaryText != null)
-                Text(
-                  departure.secondaryText!,
-                  style: theme.textTheme.bodyMedium!.copyWith(color: fg),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (departure.secondaryText != null)
+                      Flexible(
+                        child: Text(
+                          departure.secondaryText!,
+                          style: theme.textTheme.bodyMedium!.copyWith(color: fg),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                
+                    if (departure.icon != DepartureIcon.none)
+                      Icon(icon, color: iconColor, size: 40),
+                  ],
                 ),
-
-              if (departure.icon != DepartureIcon.none)
-                Icon(icon, color: iconColor, size: 40),
+              ),
             ],
           ),
         ),
