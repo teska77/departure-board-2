@@ -19,7 +19,7 @@ Future<void> main() async {
   //});
 
   final state = TrainboardState([
-    TflBusDepartureService(naptanCode: "490000138F", name: "Bussy"),
+    TflBusDepartureService(naptanCodes: ["490014149S", "490000015H"], name: "Bussy"),
     LdbwsService(
       crs: "CSS",
       name: "Chessington",
