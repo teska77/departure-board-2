@@ -1,6 +1,6 @@
 enum DepartureType { normal, delayed, cancelled }
 
-enum DepartureIcon { none, check, live, scheduled }
+enum DepartureIcon { none, check, live, scheduled, speed }
 
 class Departure {
   final DepartureType type;
@@ -33,7 +33,7 @@ class Departure {
        icon = isLive ? DepartureIcon.live : DepartureIcon.scheduled;
 }
 
-enum StationLogo { southWesternRailway, thamesLink, tflBus, digico }
+enum StationLogo { southWesternRailway, thamesLink, tflBus, digico, highway }
 
 class StationData {
   final String? errorText;
