@@ -3,20 +3,20 @@ import 'dart:async';
 import 'package:depboard2_flutter/ldbws.dart';
 import 'package:depboard2_flutter/tfl_api.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 // import 'package:window_manager/window_manager.dart';
 import 'departure_model.dart';
+import 'departure_widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  //await windowManager.ensureInitialized();
-  //final options = WindowOptions(size: Size(1920, 360));
-  //await windowManager.waitUntilReadyToShow(options, () async {
-  //  await windowManager.show();
-  //  await windowManager.focus();
-  //});
+  // await windowManager.ensureInitialized();
+  // final options = WindowOptions(size: Size(1920, 360));
+  // await windowManager.waitUntilReadyToShow(options, () async {
+  //   await windowManager.show();
+  //   await windowManager.focus();
+  // });
 
   final state = TrainboardState([
     TflBusDepartureService(
@@ -36,7 +36,7 @@ Future<void> main() async {
       reportDestination: true,
       operatorCodeFilter: "TL",
     ),
-  ], depRowLimit: 4);
+  ], depRowLimit: 5);
 
   await state.runInitialQueries();
 
@@ -165,234 +165,3 @@ class MainPage extends StatelessWidget {
   }
 }
 
-class StationWidget extends StatelessWidget {
-  final String name;
-  final StationLogo logo;
-  final StationData station;
-  final int depRowLimit;
-
-  const StationWidget({
-    super.key,
-    required this.station,
-    required this.name,
-    required this.logo,
-    required this.depRowLimit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final svgHeight = 30.0;
-
-    Widget logoWidget;
-    switch (logo) {
-      case StationLogo.southWesternRailway:
-        logoWidget = SvgPicture.asset("assets/swr_logo.svg", height: svgHeight);
-        break;
-      case StationLogo.thamesLink:
-        logoWidget = SvgPicture.asset(
-          "assets/thameslink_logo.svg",
-          height: svgHeight,
-        );
-        break;
-      case StationLogo.tflBus:
-        logoWidget = SvgPicture.asset(
-          "assets/buses_roundel.svg",
-          height: svgHeight,
-        );
-        break;
-      case StationLogo.digico:
-        logoWidget = SvgPicture.asset("assets/digico.svg", height: svgHeight);
-        break;
-    }
-
-    List<Widget> departuresList;
-    if (station.errorText != null) {
-      departuresList = [StationErrorWidget(errorText: station.errorText!)];
-    } else {
-      var depWidgets = station.departures.map(
-        (dep) => DepartureWidget(departure: dep),
-      );
-      if (depRowLimit != 0) {
-        departuresList = depWidgets.take(depRowLimit).toList();
-      } else {
-        departuresList = depWidgets.toList();
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        children: [
-          TitleCard(title: name, icon: logoWidget),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(children: departuresList),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class TitleCard extends StatelessWidget {
-  final String title;
-  final Widget icon;
-
-  const TitleCard({super.key, required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 10, right: 10),
-      child: Row(
-        spacing: 10,
-        children: [
-          icon,
-          Text(
-            title,
-            style: theme.textTheme.titleMedium!.copyWith(
-              color: theme.colorScheme.onPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class StationErrorWidget extends StatelessWidget {
-  final String errorText;
-  const StationErrorWidget({super.key, required this.errorText});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bg = theme.colorScheme.tertiary;
-    final fg = theme.colorScheme.onTertiary;
-
-    return Container(
-      padding: EdgeInsets.only(top: 5, bottom: 5),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.all(Radius.circular(5)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 10, right: 10),
-          child: Column(
-            children: [
-              Text(
-                "Error",
-                style: theme.textTheme.bodyMedium!.copyWith(color: fg),
-              ),
-              FittedBox(
-                child: Text(
-                  errorText,
-                  style: theme.textTheme.bodySmall!.copyWith(color: fg),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class DepartureWidget extends StatelessWidget {
-  const DepartureWidget({super.key, required this.departure});
-
-  final Departure departure;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    Color bg;
-    Color fg;
-    switch (departure.type) {
-      case DepartureType.normal:
-        bg = theme.colorScheme.primary;
-        fg = theme.colorScheme.onPrimary;
-        break;
-      case DepartureType.delayed:
-        bg = theme.colorScheme.secondary;
-        fg = theme.colorScheme.onSecondary;
-        break;
-      case DepartureType.cancelled:
-        bg = theme.colorScheme.tertiary;
-        fg = theme.colorScheme.onTertiary;
-        break;
-    }
-
-    final timeTextDecoration =
-        departure.timeStrikethrough
-            ? TextDecoration.lineThrough
-            : TextDecoration.none;
-
-    IconData icon;
-    Color iconColor;
-    switch (departure.icon) {
-      case DepartureIcon.none:
-        icon = Icons.abc;
-        iconColor = Colors.black;
-      case DepartureIcon.check:
-        icon = Icons.check_rounded;
-        iconColor = theme.colorScheme.onPrimaryFixed;
-      case DepartureIcon.live:
-        icon = Icons.rss_feed;
-        iconColor = theme.colorScheme.onPrimaryFixedVariant;
-      case DepartureIcon.scheduled:
-        icon = Icons.calendar_month;
-        iconColor = theme.colorScheme.onPrimaryFixed;
-    }
-
-    return Container(
-      padding: EdgeInsets.only(top: 5, bottom: 5),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.all(Radius.circular(5)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 10, right: 10),
-          child: Row(
-            spacing: 30,
-            children: [
-              Text(
-                departure.time,
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: fg,
-                  decoration: timeTextDecoration,
-                ),
-              ),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (departure.secondaryText != null)
-                      Flexible(
-                        child: Text(
-                          departure.secondaryText!,
-                          style: theme.textTheme.bodyMedium!.copyWith(
-                            color: fg,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                    if (departure.icon != DepartureIcon.none)
-                      Icon(icon, color: iconColor, size: 40),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
