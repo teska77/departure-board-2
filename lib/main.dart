@@ -19,7 +19,10 @@ Future<void> main() async {
   //});
 
   final state = TrainboardState([
-    TflBusDepartureService(naptanCodes: ["490014149S", "490000015H"], name: "Bussy"),
+    TflBusDepartureService(
+      naptanCodes: ["490011796S", "490011796N"],
+      name: "Bussy",
+    ),
     LdbwsService(
       crs: "CSS",
       name: "Chessington",
@@ -33,7 +36,7 @@ Future<void> main() async {
       reportDestination: true,
       operatorCodeFilter: "TL",
     ),
-  ]);
+  ], depRowLimit: 4);
 
   await state.runInitialQueries();
 
@@ -54,8 +57,12 @@ class StationDepartureState {
 
 class TrainboardState extends ChangeNotifier {
   late final List<StationDepartureState> stationStates;
+  final int depRowLimit;
 
-  TrainboardState(List<StationDepartureService> services) {
+  TrainboardState(
+    List<StationDepartureService> services, {
+    this.depRowLimit = 0,
+  }) {
     stationStates =
         services.map((service) {
           var depState = StationDepartureState(service: service);
@@ -146,6 +153,7 @@ class MainPage extends StatelessWidget {
                           station: station.data,
                           name: station.service.name,
                           logo: station.service.logo,
+                          depRowLimit: state.depRowLimit,
                         ),
                       ),
                     )
@@ -161,12 +169,14 @@ class StationWidget extends StatelessWidget {
   final String name;
   final StationLogo logo;
   final StationData station;
+  final int depRowLimit;
 
   const StationWidget({
     super.key,
     required this.station,
     required this.name,
     required this.logo,
+    required this.depRowLimit,
   });
 
   @override
@@ -199,10 +209,14 @@ class StationWidget extends StatelessWidget {
     if (station.errorText != null) {
       departuresList = [StationErrorWidget(errorText: station.errorText!)];
     } else {
-      departuresList =
-          station.departures
-              .map((dep) => DepartureWidget(departure: dep))
-              .toList();
+      var depWidgets = station.departures.map(
+        (dep) => DepartureWidget(departure: dep),
+      );
+      if (depRowLimit != 0) {
+        departuresList = depWidgets.take(depRowLimit).toList();
+      } else {
+        departuresList = depWidgets.toList();
+      }
     }
 
     return Padding(
